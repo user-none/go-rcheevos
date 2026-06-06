@@ -3,6 +3,7 @@ package rcheevos
 /*
 #cgo CFLAGS: -I${SRCDIR}/rcheevos/include -I${SRCDIR}/rcheevos/src -DRC_DISABLE_LUA
 #cgo CFLAGS: -DRC_CLIENT_SUPPORTS_HASH
+#cgo LDFLAGS: -lm
 
 #include <stdlib.h>
 #include <stdint.h>
@@ -165,8 +166,10 @@ const (
 	ConsoleSega32X      = C.RC_CONSOLE_SEGA_32X
 	ConsoleMasterSystem = C.RC_CONSOLE_MASTER_SYSTEM
 	ConsolePlayStation  = C.RC_CONSOLE_PLAYSTATION
+	ConsoleNeoGeoPocket = C.RC_CONSOLE_NEOGEO_POCKET
 	ConsoleGameGear     = C.RC_CONSOLE_GAME_GEAR
 	ConsoleSG1000       = C.RC_CONSOLE_SG1000
+	ConsoleSaturn       = C.RC_CONSOLE_SATURN
 )
 
 // Log levels
