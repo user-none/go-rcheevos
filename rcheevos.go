@@ -69,28 +69,31 @@ static void enable_logging(rc_client_t* client, int level) {
     rc_client_enable_logging(client, level, c_log_callback);
 }
 
-static rc_client_async_handle_t* begin_login_with_password(rc_client_t* client, const char* username, const char* password) {
-    return rc_client_begin_login_with_password(client, username, password, c_login_callback, NULL);
+// The begin_ helpers pass the request's handle from Go through rcheevos as
+// the callback userdata, so each completion reaches its own request.
+
+static rc_client_async_handle_t* begin_login_with_password(rc_client_t* client, const char* username, const char* password, uintptr_t userdata) {
+    return rc_client_begin_login_with_password(client, username, password, c_login_callback, (void*)userdata);
 }
 
-static rc_client_async_handle_t* begin_login_with_token(rc_client_t* client, const char* username, const char* token) {
-    return rc_client_begin_login_with_token(client, username, token, c_login_callback, NULL);
+static rc_client_async_handle_t* begin_login_with_token(rc_client_t* client, const char* username, const char* token, uintptr_t userdata) {
+    return rc_client_begin_login_with_token(client, username, token, c_login_callback, (void*)userdata);
 }
 
-static rc_client_async_handle_t* begin_load_game(rc_client_t* client, const char* hash) {
-    return rc_client_begin_load_game(client, hash, c_load_game_callback, NULL);
+static rc_client_async_handle_t* begin_load_game(rc_client_t* client, const char* hash, uintptr_t userdata) {
+    return rc_client_begin_load_game(client, hash, c_load_game_callback, (void*)userdata);
 }
 
-static rc_client_async_handle_t* begin_identify_and_load_game(rc_client_t* client, uint32_t console_id, const char* file_path, const uint8_t* data, size_t data_size) {
-    return rc_client_begin_identify_and_load_game(client, console_id, file_path, data, data_size, c_load_game_callback, NULL);
+static rc_client_async_handle_t* begin_identify_and_load_game(rc_client_t* client, uint32_t console_id, const char* file_path, const uint8_t* data, size_t data_size, uintptr_t userdata) {
+    return rc_client_begin_identify_and_load_game(client, console_id, file_path, data, data_size, c_load_game_callback, (void*)userdata);
 }
 
-static rc_client_async_handle_t* begin_fetch_leaderboard_entries(rc_client_t* client, uint32_t leaderboard_id, uint32_t first_entry, uint32_t count) {
-    return rc_client_begin_fetch_leaderboard_entries(client, leaderboard_id, first_entry, count, c_leaderboard_entries_callback, NULL);
+static rc_client_async_handle_t* begin_fetch_leaderboard_entries(rc_client_t* client, uint32_t leaderboard_id, uint32_t first_entry, uint32_t count, uintptr_t userdata) {
+    return rc_client_begin_fetch_leaderboard_entries(client, leaderboard_id, first_entry, count, c_leaderboard_entries_callback, (void*)userdata);
 }
 
-static rc_client_async_handle_t* begin_fetch_leaderboard_entries_around_user(rc_client_t* client, uint32_t leaderboard_id, uint32_t count) {
-    return rc_client_begin_fetch_leaderboard_entries_around_user(client, leaderboard_id, count, c_leaderboard_entries_callback, NULL);
+static rc_client_async_handle_t* begin_fetch_leaderboard_entries_around_user(rc_client_t* client, uint32_t leaderboard_id, uint32_t count, uintptr_t userdata) {
+    return rc_client_begin_fetch_leaderboard_entries_around_user(client, leaderboard_id, count, c_leaderboard_entries_callback, (void*)userdata);
 }
 
 static uint64_t c_get_time_millisecs_callback(const rc_client_t* client) {
@@ -105,12 +108,12 @@ static void c_change_media_callback(int result, const char* error_message, rc_cl
     goChangeMediaCallback(result, error_message, client, userdata);
 }
 
-static rc_client_async_handle_t* begin_change_media(rc_client_t* client, const char* hash) {
-    return rc_client_begin_change_media(client, hash, c_change_media_callback, NULL);
+static rc_client_async_handle_t* begin_change_media(rc_client_t* client, const char* hash, uintptr_t userdata) {
+    return rc_client_begin_change_media(client, hash, c_change_media_callback, (void*)userdata);
 }
 
-static rc_client_async_handle_t* begin_identify_and_change_media(rc_client_t* client, const char* file_path, const uint8_t* data, size_t data_size) {
-    return rc_client_begin_identify_and_change_media(client, file_path, data, data_size, c_change_media_callback, NULL);
+static rc_client_async_handle_t* begin_identify_and_change_media(rc_client_t* client, const char* file_path, const uint8_t* data, size_t data_size, uintptr_t userdata) {
+    return rc_client_begin_identify_and_change_media(client, file_path, data, data_size, c_change_media_callback, (void*)userdata);
 }
 
 static void c_fetch_hash_library_callback(int result, const char* error_message, rc_client_hash_library_t* list, rc_client_t* client, void* userdata) {
@@ -125,16 +128,16 @@ static void c_fetch_all_user_progress_callback(int result, const char* error_mes
     goFetchAllUserProgressCallback(result, error_message, list, client, userdata);
 }
 
-static rc_client_async_handle_t* begin_fetch_hash_library(rc_client_t* client, uint32_t console_id) {
-    return rc_client_begin_fetch_hash_library(client, console_id, c_fetch_hash_library_callback, NULL);
+static rc_client_async_handle_t* begin_fetch_hash_library(rc_client_t* client, uint32_t console_id, uintptr_t userdata) {
+    return rc_client_begin_fetch_hash_library(client, console_id, c_fetch_hash_library_callback, (void*)userdata);
 }
 
-static rc_client_async_handle_t* begin_fetch_game_titles(rc_client_t* client, const uint32_t* game_ids, uint32_t num_game_ids) {
-    return rc_client_begin_fetch_game_titles(client, game_ids, num_game_ids, c_fetch_game_titles_callback, NULL);
+static rc_client_async_handle_t* begin_fetch_game_titles(rc_client_t* client, const uint32_t* game_ids, uint32_t num_game_ids, uintptr_t userdata) {
+    return rc_client_begin_fetch_game_titles(client, game_ids, num_game_ids, c_fetch_game_titles_callback, (void*)userdata);
 }
 
-static rc_client_async_handle_t* begin_fetch_all_user_progress(rc_client_t* client, uint32_t console_id) {
-    return rc_client_begin_fetch_all_user_progress(client, console_id, c_fetch_all_user_progress_callback, NULL);
+static rc_client_async_handle_t* begin_fetch_all_user_progress(rc_client_t* client, uint32_t console_id, uintptr_t userdata) {
+    return rc_client_begin_fetch_all_user_progress(client, console_id, c_fetch_all_user_progress_callback, (void*)userdata);
 }
 
 // Server response helper
@@ -150,6 +153,7 @@ import "C"
 import (
 	"bytes"
 	"math"
+	"runtime/cgo"
 	"sync"
 	"sync/atomic"
 	"unsafe"
@@ -239,16 +243,27 @@ type ServerRequest struct {
 	ContentType string
 	callback    C.rc_client_server_callback_t
 	callbackData unsafe.Pointer
+	client       *Client
 	responded    atomic.Bool
 }
 
 // Respond sends the server response back to rcheevos. Only the first call
 // has an effect: rcheevos frees the request's state when it handles the
-// response, so a second response would use freed memory. A body larger
-// than math.MaxInt32 bytes, more than rcheevos takes, is reported as a
-// client error with no body instead.
+// response, so a second response would use freed memory. A response for a
+// client that has been destroyed is dropped, since rcheevos would reach the
+// freed client. A body larger than math.MaxInt32 bytes, more than rcheevos
+// takes, is reported as a client error with no body instead.
+//
+// Destroy waits for a Respond in progress, so a callback reached from
+// Respond must not destroy the client.
 func (r *ServerRequest) Respond(body []byte, httpStatus int) {
 	if !r.responded.CompareAndSwap(false, true) {
+		return
+	}
+	c := r.client
+	c.respondMu.RLock()
+	defer c.respondMu.RUnlock()
+	if c.destroyed {
 		return
 	}
 	if len(body) > math.MaxInt32 {
@@ -361,14 +376,21 @@ type Game struct {
 
 // Client wraps the rc_client
 type Client struct {
-	ptr              *C.rc_client_t
-	readMemoryFunc   ReadMemoryFunc
-	serverCallFunc   ServerCallFunc
-	eventFunc        EventFunc
-	logFunc          LogFunc
-	loginCallback    LoginCallbackFunc
-	loadGameCallback LoadGameCallbackFunc
-	mu               sync.RWMutex
+	ptr            *C.rc_client_t
+	readMemoryFunc ReadMemoryFunc
+	serverCallFunc ServerCallFunc
+	eventFunc      EventFunc
+	logFunc        LogFunc
+	// pending holds the requests started and not yet finished, by the
+	// handle passed to rcheevos as their userdata
+	pending map[cgo.Handle]requestKind
+	mu      sync.RWMutex
+
+	// respondMu is held by Respond while it hands a response to rcheevos,
+	// and by Destroy to wait for those to finish before freeing the client.
+	// destroyed is set under it.
+	respondMu sync.RWMutex
+	destroyed bool
 }
 
 var (
@@ -401,6 +423,7 @@ func NewClient(readMemory ReadMemoryFunc, serverCall ServerCallFunc) *Client {
 	c := &Client{
 		readMemoryFunc: readMemory,
 		serverCallFunc: serverCall,
+		pending:        make(map[cgo.Handle]requestKind),
 	}
 	c.ptr = C.create_client_with_callbacks()
 	registerClient(c)
@@ -408,13 +431,28 @@ func NewClient(readMemory ReadMemoryFunc, serverCall ServerCallFunc) *Client {
 	return c
 }
 
-// Destroy releases resources associated with the client
+// Destroy releases resources associated with the client. It waits for any
+// server response being handled, then drops responses that arrive later
+// and the callbacks of requests still pending, which are never called.
 func (c *Client) Destroy() {
-	if c.ptr != nil {
-		unregisterClient(c)
-		C.rc_client_destroy(c.ptr)
-		c.ptr = nil
+	c.respondMu.Lock()
+	if c.destroyed {
+		c.respondMu.Unlock()
+		return
 	}
+	c.destroyed = true
+	c.respondMu.Unlock()
+
+	// Callbacks rcheevos makes from here on find no client and are
+	// ignored, and no new request can start
+	unregisterClient(c)
+	c.mu.Lock()
+	ptr := c.ptr
+	c.ptr = nil
+	c.mu.Unlock()
+	c.dropRequests()
+
+	C.rc_client_destroy(ptr)
 }
 
 // SetEventHandler sets the event callback
@@ -446,36 +484,51 @@ func (c *Client) GetHardcoreEnabled() bool {
 	return C.rc_client_get_hardcore_enabled(c.ptr) != 0
 }
 
-// LoginWithPassword starts a login with username and password
+// LoginWithPassword starts a login with username and password. callback
+// receives the result of this login only; it may be called before
+// LoginWithPassword returns, for example when a login is already in
+// progress.
 func (c *Client) LoginWithPassword(username, password string, callback LoginCallbackFunc) {
-	c.mu.Lock()
-	c.loginCallback = callback
-	c.mu.Unlock()
+	h, ok := c.beginRequest(requestOther, callback)
+	if !ok {
+		if callback != nil {
+			callback(InvalidState, msgClientRequired)
+		}
+		return
+	}
 
 	cUsername := C.CString(username)
 	cPassword := C.CString(password)
 	defer C.free(unsafe.Pointer(cUsername))
 	defer C.free(unsafe.Pointer(cPassword))
 
-	C.begin_login_with_password(c.ptr, cUsername, cPassword)
+	C.begin_login_with_password(c.ptr, cUsername, cPassword, C.uintptr_t(h))
 }
 
-// LoginWithToken starts a login with username and token
+// LoginWithToken starts a login with username and token. callback receives
+// the result of this login only; it may be called before LoginWithToken
+// returns.
 func (c *Client) LoginWithToken(username, token string, callback LoginCallbackFunc) {
-	c.mu.Lock()
-	c.loginCallback = callback
-	c.mu.Unlock()
+	h, ok := c.beginRequest(requestOther, callback)
+	if !ok {
+		if callback != nil {
+			callback(InvalidState, msgClientRequired)
+		}
+		return
+	}
 
 	cUsername := C.CString(username)
 	cToken := C.CString(token)
 	defer C.free(unsafe.Pointer(cUsername))
 	defer C.free(unsafe.Pointer(cToken))
 
-	C.begin_login_with_token(c.ptr, cUsername, cToken)
+	C.begin_login_with_token(c.ptr, cUsername, cToken, C.uintptr_t(h))
 }
 
-// Logout logs out the current user
+// Logout logs out the current user. A login in progress is reported
+// aborted to its callback, and so is a game load in progress.
 func (c *Client) Logout() {
+	c.retireLoads()
 	C.rc_client_logout(c.ptr)
 }
 
@@ -494,23 +547,41 @@ func (c *Client) GetUser() *User {
 	}
 }
 
-// LoadGame starts loading a game by hash
+// LoadGame starts loading a game by hash. callback receives the result of
+// this load only; it may be called before LoadGame returns. A load still in
+// progress is abandoned and reported aborted to its own callback.
 func (c *Client) LoadGame(hash string, callback LoadGameCallbackFunc) {
-	c.mu.Lock()
-	c.loadGameCallback = callback
-	c.mu.Unlock()
+	// rcheevos rejects an empty hash before touching the load in progress
+	if hash != "" {
+		c.retireLoads()
+	}
+	h, ok := c.beginRequest(requestLoad, callback)
+	if !ok {
+		if callback != nil {
+			callback(InvalidState, msgClientRequired)
+		}
+		return
+	}
 
 	cHash := C.CString(hash)
 	defer C.free(unsafe.Pointer(cHash))
 
-	C.begin_load_game(c.ptr, cHash)
+	C.begin_load_game(c.ptr, cHash, C.uintptr_t(h))
 }
 
-// IdentifyAndLoadGame identifies a game by ROM data and loads it
+// IdentifyAndLoadGame identifies a game by ROM data and loads it. callback
+// receives the result of this load only; it may be called before
+// IdentifyAndLoadGame returns. A load still in progress is abandoned and
+// reported aborted to its own callback.
 func (c *Client) IdentifyAndLoadGame(consoleID uint32, filePath string, data []byte, callback LoadGameCallbackFunc) {
-	c.mu.Lock()
-	c.loadGameCallback = callback
-	c.mu.Unlock()
+	c.retireLoads()
+	h, ok := c.beginRequest(requestLoad, callback)
+	if !ok {
+		if callback != nil {
+			callback(InvalidState, msgClientRequired)
+		}
+		return
+	}
 
 	var cFilePath *C.char
 	if filePath != "" {
@@ -523,11 +594,13 @@ func (c *Client) IdentifyAndLoadGame(consoleID uint32, filePath string, data []b
 		dataPtr = (*C.uint8_t)(unsafe.Pointer(&data[0]))
 	}
 
-	C.begin_identify_and_load_game(c.ptr, C.uint32_t(consoleID), cFilePath, dataPtr, C.size_t(len(data)))
+	C.begin_identify_and_load_game(c.ptr, C.uint32_t(consoleID), cFilePath, dataPtr, C.size_t(len(data)), C.uintptr_t(h))
 }
 
-// UnloadGame unloads the current game
+// UnloadGame unloads the current game. A load in progress is abandoned and
+// reported aborted to its callback.
 func (c *Client) UnloadGame() {
+	c.retireLoads()
 	C.rc_client_unload_game(c.ptr)
 }
 
@@ -664,13 +737,13 @@ func ConsoleName(consoleID uint32) string {
 }
 
 // cBeginFetchLeaderboardEntries is an internal wrapper for C.begin_fetch_leaderboard_entries
-func cBeginFetchLeaderboardEntries(client *C.rc_client_t, leaderboardID, firstEntry, count uint32) {
-	C.begin_fetch_leaderboard_entries(client, C.uint32_t(leaderboardID), C.uint32_t(firstEntry), C.uint32_t(count))
+func cBeginFetchLeaderboardEntries(client *C.rc_client_t, leaderboardID, firstEntry, count uint32, h cgo.Handle) {
+	C.begin_fetch_leaderboard_entries(client, C.uint32_t(leaderboardID), C.uint32_t(firstEntry), C.uint32_t(count), C.uintptr_t(h))
 }
 
 // cBeginFetchLeaderboardEntriesAroundUser is an internal wrapper for C.begin_fetch_leaderboard_entries_around_user
-func cBeginFetchLeaderboardEntriesAroundUser(client *C.rc_client_t, leaderboardID, count uint32) {
-	C.begin_fetch_leaderboard_entries_around_user(client, C.uint32_t(leaderboardID), C.uint32_t(count))
+func cBeginFetchLeaderboardEntriesAroundUser(client *C.rc_client_t, leaderboardID, count uint32, h cgo.Handle) {
+	C.begin_fetch_leaderboard_entries_around_user(client, C.uint32_t(leaderboardID), C.uint32_t(count), C.uintptr_t(h))
 }
 
 // cSetGetTimeMillisecsFunction is an internal wrapper
@@ -679,26 +752,26 @@ func cSetGetTimeMillisecsFunction(client *C.rc_client_t) {
 }
 
 // cBeginChangeMedia is an internal wrapper
-func cBeginChangeMedia(client *C.rc_client_t, hash *C.char) {
-	C.begin_change_media(client, hash)
+func cBeginChangeMedia(client *C.rc_client_t, hash *C.char, h cgo.Handle) {
+	C.begin_change_media(client, hash, C.uintptr_t(h))
 }
 
 // cBeginIdentifyAndChangeMedia is an internal wrapper
-func cBeginIdentifyAndChangeMedia(client *C.rc_client_t, filePath *C.char, data *C.uint8_t, dataSize C.size_t) {
-	C.begin_identify_and_change_media(client, filePath, data, dataSize)
+func cBeginIdentifyAndChangeMedia(client *C.rc_client_t, filePath *C.char, data *C.uint8_t, dataSize C.size_t, h cgo.Handle) {
+	C.begin_identify_and_change_media(client, filePath, data, dataSize, C.uintptr_t(h))
 }
 
 // cBeginFetchHashLibrary is an internal wrapper
-func cBeginFetchHashLibrary(client *C.rc_client_t, consoleID uint32) {
-	C.begin_fetch_hash_library(client, C.uint32_t(consoleID))
+func cBeginFetchHashLibrary(client *C.rc_client_t, consoleID uint32, h cgo.Handle) {
+	C.begin_fetch_hash_library(client, C.uint32_t(consoleID), C.uintptr_t(h))
 }
 
 // cBeginFetchGameTitles is an internal wrapper
-func cBeginFetchGameTitles(client *C.rc_client_t, gameIDs *C.uint32_t, numGameIDs uint32) {
-	C.begin_fetch_game_titles(client, gameIDs, C.uint32_t(numGameIDs))
+func cBeginFetchGameTitles(client *C.rc_client_t, gameIDs *C.uint32_t, numGameIDs uint32, h cgo.Handle) {
+	C.begin_fetch_game_titles(client, gameIDs, C.uint32_t(numGameIDs), C.uintptr_t(h))
 }
 
 // cBeginFetchAllUserProgress is an internal wrapper
-func cBeginFetchAllUserProgress(client *C.rc_client_t, consoleID uint32) {
-	C.begin_fetch_all_user_progress(client, C.uint32_t(consoleID))
+func cBeginFetchAllUserProgress(client *C.rc_client_t, consoleID uint32, h cgo.Handle) {
+	C.begin_fetch_all_user_progress(client, C.uint32_t(consoleID), C.uintptr_t(h))
 }

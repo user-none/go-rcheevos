@@ -5,53 +5,52 @@ package rcheevos
 #include "rc_client.h"
 */
 import "C"
-import (
-	"sync"
-	"unsafe"
-)
+import "unsafe"
 
 // ChangeMediaCallback is called when media change completes
 type ChangeMediaCallback func(result int, errorMessage string)
 
-var (
-	changeMediaCallbacks   = make(map[*C.rc_client_t]ChangeMediaCallback)
-	changeMediaCallbacksMu sync.RWMutex
-)
-
 //export goChangeMediaCallback
 func goChangeMediaCallback(result C.int, errorMessage *C.char, client *C.rc_client_t, userdata unsafe.Pointer) {
-	changeMediaCallbacksMu.RLock()
-	callback := changeMediaCallbacks[client]
-	changeMediaCallbacksMu.RUnlock()
-
-	if callback != nil {
-		var errMsg string
-		if errorMessage != nil {
-			errMsg = C.GoString(errorMessage)
-		}
-		callback(int(result), errMsg)
+	cb, ok := finishRequest(client, userdata)
+	if !ok {
+		return
+	}
+	if callback := cb.(ChangeMediaCallback); callback != nil {
+		callback(int(result), goErrorMessage(errorMessage))
 	}
 }
 
 // ChangeMedia changes the active disc in a multi-disc game using a known hash.
-// This allows achievements to span multiple discs.
+// This allows achievements to span multiple discs. callback receives the
+// result of this change only; it may be called before ChangeMedia returns.
 func (c *Client) ChangeMedia(hash string, callback ChangeMediaCallback) {
-	changeMediaCallbacksMu.Lock()
-	changeMediaCallbacks[c.ptr] = callback
-	changeMediaCallbacksMu.Unlock()
+	h, ok := c.beginRequest(requestOther, callback)
+	if !ok {
+		if callback != nil {
+			callback(InvalidState, msgClientRequired)
+		}
+		return
+	}
 
 	cHash := C.CString(hash)
 	defer C.free(unsafe.Pointer(cHash))
 
-	cBeginChangeMedia(c.ptr, cHash)
+	cBeginChangeMedia(c.ptr, cHash, h)
 }
 
 // IdentifyAndChangeMedia identifies and changes the active disc in a multi-disc game.
-// Either filePath or data should be provided (not both).
+// Either filePath or data should be provided (not both). callback receives
+// the result of this change only; it may be called before
+// IdentifyAndChangeMedia returns.
 func (c *Client) IdentifyAndChangeMedia(filePath string, data []byte, callback ChangeMediaCallback) {
-	changeMediaCallbacksMu.Lock()
-	changeMediaCallbacks[c.ptr] = callback
-	changeMediaCallbacksMu.Unlock()
+	h, ok := c.beginRequest(requestOther, callback)
+	if !ok {
+		if callback != nil {
+			callback(InvalidState, msgClientRequired)
+		}
+		return
+	}
 
 	var cFilePath *C.char
 	if filePath != "" {
@@ -64,7 +63,7 @@ func (c *Client) IdentifyAndChangeMedia(filePath string, data []byte, callback C
 		dataPtr = (*C.uint8_t)(unsafe.Pointer(&data[0]))
 	}
 
-	cBeginIdentifyAndChangeMedia(c.ptr, cFilePath, dataPtr, C.size_t(len(data)))
+	cBeginIdentifyAndChangeMedia(c.ptr, cFilePath, dataPtr, C.size_t(len(data)), h)
 }
 
 // GetGameImageURL returns the URL for the game's badge/box art image.

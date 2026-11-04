@@ -6,7 +6,6 @@ package rcheevos
 */
 import "C"
 import (
-	"sync"
 	"time"
 	"unsafe"
 )
@@ -147,17 +146,12 @@ func (e *LeaderboardEntry) GetUserImageURL() string {
 // LeaderboardEntriesCallback is called when leaderboard entries are fetched
 type LeaderboardEntriesCallback func(result int, errorMessage string, entries *LeaderboardEntryList)
 
-var (
-	leaderboardEntriesCallbacks   = make(map[*C.rc_client_t]LeaderboardEntriesCallback)
-	leaderboardEntriesCallbacksMu sync.RWMutex
-)
-
 //export goLeaderboardEntriesCallback
 func goLeaderboardEntriesCallback(result C.int, errorMessage *C.char, list *C.rc_client_leaderboard_entry_list_t, client *C.rc_client_t, userdata unsafe.Pointer) {
-	leaderboardEntriesCallbacksMu.RLock()
-	callback := leaderboardEntriesCallbacks[client]
-	leaderboardEntriesCallbacksMu.RUnlock()
-
+	var callback LeaderboardEntriesCallback
+	if cb, ok := finishRequest(client, userdata); ok {
+		callback = cb.(LeaderboardEntriesCallback)
+	}
 	if callback == nil {
 		if list != nil {
 			C.rc_client_destroy_leaderboard_entry_list(list)
@@ -165,10 +159,7 @@ func goLeaderboardEntriesCallback(result C.int, errorMessage *C.char, list *C.rc
 		return
 	}
 
-	var errMsg string
-	if errorMessage != nil {
-		errMsg = C.GoString(errorMessage)
-	}
+	errMsg := goErrorMessage(errorMessage)
 
 	var entryList *LeaderboardEntryList
 	if list != nil {
@@ -201,21 +192,33 @@ func goLeaderboardEntriesCallback(result C.int, errorMessage *C.char, list *C.rc
 // firstEntry is 1-based (1 = first entry).
 // count is the number of entries to fetch.
 // The callback receives an allocated list that must be destroyed by calling Destroy().
+// It receives the result of this fetch only, and may be called before
+// FetchLeaderboardEntries returns.
 func (c *Client) FetchLeaderboardEntries(leaderboardID uint32, firstEntry, count uint32, callback LeaderboardEntriesCallback) {
-	leaderboardEntriesCallbacksMu.Lock()
-	leaderboardEntriesCallbacks[c.ptr] = callback
-	leaderboardEntriesCallbacksMu.Unlock()
+	h, ok := c.beginRequest(requestOther, callback)
+	if !ok {
+		if callback != nil {
+			callback(InvalidState, msgClientRequired, nil)
+		}
+		return
+	}
 
-	cBeginFetchLeaderboardEntries(c.ptr, leaderboardID, firstEntry, count)
+	cBeginFetchLeaderboardEntries(c.ptr, leaderboardID, firstEntry, count, h)
 }
 
 // FetchLeaderboardEntriesAroundUser fetches leaderboard entries surrounding the current user.
 // count is the total number of entries to fetch (user will be approximately in the middle).
 // The callback receives an allocated list that must be destroyed by calling Destroy().
+// It receives the result of this fetch only, and may be called before
+// FetchLeaderboardEntriesAroundUser returns.
 func (c *Client) FetchLeaderboardEntriesAroundUser(leaderboardID uint32, count uint32, callback LeaderboardEntriesCallback) {
-	leaderboardEntriesCallbacksMu.Lock()
-	leaderboardEntriesCallbacks[c.ptr] = callback
-	leaderboardEntriesCallbacksMu.Unlock()
+	h, ok := c.beginRequest(requestOther, callback)
+	if !ok {
+		if callback != nil {
+			callback(InvalidState, msgClientRequired, nil)
+		}
+		return
+	}
 
-	cBeginFetchLeaderboardEntriesAroundUser(c.ptr, leaderboardID, count)
+	cBeginFetchLeaderboardEntriesAroundUser(c.ptr, leaderboardID, count, h)
 }

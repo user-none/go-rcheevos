@@ -27,19 +27,6 @@ func (c *Client) CanPause() (allowed bool, framesRemaining uint32) {
 	return result != 0, uint32(remaining)
 }
 
-// AbortAsync marks an async process as aborted. The associated callback will not be called.
-// Pass the async handle returned by login/load game functions.
-func (c *Client) AbortAsync(handle *AsyncHandle) {
-	if handle != nil && handle.ptr != nil {
-		C.rc_client_abort_async(c.ptr, handle.ptr)
-	}
-}
-
-// AsyncHandle represents an async operation that can be aborted
-type AsyncHandle struct {
-	ptr *C.rc_client_async_handle_t
-}
-
 // Load game state constants
 const (
 	LoadGameStateNone           = C.RC_CLIENT_LOAD_GAME_STATE_NONE

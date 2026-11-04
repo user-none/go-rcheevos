@@ -113,8 +113,8 @@ static void c_load_game_callback_disc(int result, const char* error_message, rc_
     goLoadGameCallback(result, error_message, client, userdata);
 }
 
-static rc_client_async_handle_t* begin_identify_and_load_game_disc(rc_client_t* client, uint32_t console_id, const char* path) {
-    return rc_client_begin_identify_and_load_game(client, console_id, path, NULL, 0, c_load_game_callback_disc, NULL);
+static rc_client_async_handle_t* begin_identify_and_load_game_disc(rc_client_t* client, uint32_t console_id, const char* path, uintptr_t userdata) {
+    return rc_client_begin_identify_and_load_game(client, console_id, path, NULL, 0, c_load_game_callback_disc, (void*)userdata);
 }
 */
 import "C"
@@ -241,11 +241,19 @@ func HashFromDisc(consoleID uint32, disc CDReader) string {
 // through disc and loads it for achievement tracking. consoleID selects the
 // hashing algorithm (e.g. 39 for Saturn). The disc is read synchronously while
 // the hash is computed during this call, so it need not outlive the call; the
-// load callback fires later from the async server round-trip.
+// load callback fires later from the async server round-trip. callback
+// receives the result of this load only; it may be called before
+// IdentifyAndLoadGameFromDisc returns. A load still in progress is abandoned
+// and reported aborted to its own callback.
 func (c *Client) IdentifyAndLoadGameFromDisc(consoleID uint32, disc CDReader, callback LoadGameCallbackFunc) {
-	c.mu.Lock()
-	c.loadGameCallback = callback
-	c.mu.Unlock()
+	c.retireLoads()
+	req, ok := c.beginRequest(requestLoad, callback)
+	if !ok {
+		if callback != nil {
+			callback(InvalidState, msgClientRequired)
+		}
+		return
+	}
 
 	h := cgo.NewHandle(disc)
 	defer h.Delete()
@@ -253,5 +261,5 @@ func (c *Client) IdentifyAndLoadGameFromDisc(consoleID uint32, disc CDReader, ca
 	token := C.CString(discToken(h))
 	defer C.free(unsafe.Pointer(token))
 
-	C.begin_identify_and_load_game_disc(c.ptr, C.uint32_t(consoleID), token)
+	C.begin_identify_and_load_game_disc(c.ptr, C.uint32_t(consoleID), token, C.uintptr_t(req))
 }

@@ -39,6 +39,7 @@ func goServerCallCallback(request *C.rc_api_request_t, callback C.rc_client_serv
 		ContentType:  C.GoString(request.content_type),
 		callback:     callback,
 		callbackData: callbackData,
+		client:       c,
 	}
 
 	c.serverCallFunc(req)
@@ -140,40 +141,30 @@ func goLogCallback(message *C.char, client *C.rc_client_t) {
 
 //export goLoginCallback
 func goLoginCallback(result C.int, errorMessage *C.char, client *C.rc_client_t, userdata unsafe.Pointer) {
-	c := getClient(client)
-	if c == nil {
+	cb, ok := finishRequest(client, userdata)
+	if !ok {
 		return
 	}
-
-	c.mu.RLock()
-	callback := c.loginCallback
-	c.mu.RUnlock()
-
-	if callback != nil {
-		var errMsg string
-		if errorMessage != nil {
-			errMsg = C.GoString(errorMessage)
-		}
-		callback(int(result), errMsg)
+	if callback := cb.(LoginCallbackFunc); callback != nil {
+		callback(int(result), goErrorMessage(errorMessage))
 	}
 }
 
 //export goLoadGameCallback
 func goLoadGameCallback(result C.int, errorMessage *C.char, client *C.rc_client_t, userdata unsafe.Pointer) {
-	c := getClient(client)
-	if c == nil {
+	cb, ok := finishRequest(client, userdata)
+	if !ok {
 		return
 	}
-
-	c.mu.RLock()
-	callback := c.loadGameCallback
-	c.mu.RUnlock()
-
-	if callback != nil {
-		var errMsg string
-		if errorMessage != nil {
-			errMsg = C.GoString(errorMessage)
-		}
-		callback(int(result), errMsg)
+	if callback := cb.(LoadGameCallbackFunc); callback != nil {
+		callback(int(result), goErrorMessage(errorMessage))
 	}
+}
+
+// goErrorMessage returns a callback's error message, "" when there is none
+func goErrorMessage(errorMessage *C.char) string {
+	if errorMessage == nil {
+		return ""
+	}
+	return C.GoString(errorMessage)
 }
