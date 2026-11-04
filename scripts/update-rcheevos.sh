@@ -38,6 +38,7 @@ rm -rf "$TEMP_DIR/rcheevos/test"
 rm -rf "$TEMP_DIR/rcheevos/validator"
 rm -f "$TEMP_DIR/rcheevos/.gitignore"
 rm -f "$TEMP_DIR/rcheevos/.editorconfig"
+rm -f "$TEMP_DIR/rcheevos/Package.swift"
 
 # Write version file
 echo "$VERSION" > "$TEMP_DIR/rcheevos/VERSION"
