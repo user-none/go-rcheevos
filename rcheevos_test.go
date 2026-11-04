@@ -552,3 +552,60 @@ func TestMultipleClients(t *testing.T) {
 
 	client2.Destroy()
 }
+
+func TestBufferString(t *testing.T) {
+	buf := []byte("abcdef\x00gh")
+	tests := []struct {
+		name   string
+		length uint64
+		want   string
+	}{
+		{"length within the text", 3, "abc"},
+		{"length at the NUL", 6, "abcdef"},
+		{"length past the NUL", 8, "abcdef"},
+		{"length past the buffer", 1000, "abcdef"},
+		{"needed length past the buffer", 1 << 40, "abcdef"},
+		{"zero", 0, ""},
+	}
+	for _, tt := range tests {
+		if got := bufferString(buf, tt.length); got != tt.want {
+			t.Errorf("%s: bufferString(%d) = %q, want %q", tt.name, tt.length, got, tt.want)
+		}
+	}
+	if got := bufferString([]byte("full"), 100); got != "full" {
+		t.Errorf("unterminated full buffer = %q, want full", got)
+	}
+}
+
+// TestServerRequestRespondOnce tests that only the first response to a
+// request reaches rcheevos: a second one is ignored instead of being
+// handed state rcheevos already freed.
+func TestServerRequestRespondOnce(t *testing.T) {
+	var req *ServerRequest
+	client := NewClient(
+		func(uint32, []byte) uint32 { return 0 },
+		func(r *ServerRequest) { req = r },
+	)
+	defer client.Destroy()
+
+	calls := 0
+	var result int
+	client.LoginWithPassword("user", "pass", func(r int, _ string) {
+		calls++
+		result = r
+	})
+	if req == nil {
+		t.Fatal("no server request made for the login")
+	}
+
+	body := []byte(`{"Success":true,"User":"user","Token":"token","Score":1,"SoftcoreScore":0,"Messages":0}`)
+	req.Respond(body, 200)
+	req.Respond(body, 200)
+
+	if calls != 1 || result != OK {
+		t.Fatalf("login callback ran %d times with result %d, want once with OK", calls, result)
+	}
+	if user := client.GetUser(); user == nil || user.Username != "user" {
+		t.Fatalf("user after login = %+v", user)
+	}
+}

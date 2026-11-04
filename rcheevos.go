@@ -8,6 +8,7 @@ package rcheevos
 #include <stdlib.h>
 #include <stdint.h>
 #include "rc_client.h"
+#include "rc_api_request.h"
 #include "rc_hash.h"
 #include "rc_consoles.h"
 #include "rc_error.h"
@@ -147,7 +148,10 @@ static void server_response_callback(rc_client_server_callback_t callback, void*
 */
 import "C"
 import (
+	"bytes"
+	"math"
 	"sync"
+	"sync/atomic"
 	"unsafe"
 )
 
@@ -235,10 +239,23 @@ type ServerRequest struct {
 	ContentType string
 	callback    C.rc_client_server_callback_t
 	callbackData unsafe.Pointer
+	responded    atomic.Bool
 }
 
-// Respond sends the server response back to rcheevos
+// Respond sends the server response back to rcheevos. Only the first call
+// has an effect: rcheevos frees the request's state when it handles the
+// response, so a second response would use freed memory. A body larger
+// than math.MaxInt32 bytes, more than rcheevos takes, is reported as a
+// client error with no body instead.
 func (r *ServerRequest) Respond(body []byte, httpStatus int) {
+	if !r.responded.CompareAndSwap(false, true) {
+		return
+	}
+	if len(body) > math.MaxInt32 {
+		body = nil
+		httpStatus = C.RC_API_SERVER_RESPONSE_CLIENT_ERROR
+	}
+
 	var bodyPtr *C.char
 	if len(body) > 0 {
 		bodyPtr = (*C.char)(unsafe.Pointer(&body[0]))
@@ -549,11 +566,27 @@ func (c *Client) Reset() {
 	C.rc_client_reset(c.ptr)
 }
 
-// GetRichPresenceMessage returns the current rich presence message
+// GetRichPresenceMessage returns the current rich presence message, cut
+// to 255 bytes when longer
 func (c *Client) GetRichPresenceMessage() string {
 	buffer := make([]byte, 256)
 	length := C.rc_client_get_rich_presence_message(c.ptr, (*C.char)(unsafe.Pointer(&buffer[0])), C.size_t(len(buffer)))
-	return string(buffer[:length])
+	return bufferString(buffer, uint64(length))
+}
+
+// bufferString returns the text rcheevos wrote into buffer, given the
+// length it returned. That length can be larger than the buffer: for a
+// message that did not fit, rcheevos returns the length it needed, not the
+// length it wrote. The text ends at the first NUL byte and never past the
+// buffer.
+func bufferString(buffer []byte, length uint64) string {
+	if length < uint64(len(buffer)) {
+		buffer = buffer[:length]
+	}
+	if i := bytes.IndexByte(buffer, 0); i >= 0 {
+		buffer = buffer[:i]
+	}
+	return string(buffer)
 }
 
 // HasRichPresence returns whether the game supports rich presence

@@ -113,10 +113,7 @@ func (c *Client) SetGetTimeMillisecsFunction(fn GetTimeMillisecsFunc) {
 func (c *Client) GetUserAgentClause() string {
 	buffer := make([]byte, 64)
 	length := C.rc_client_get_user_agent_clause(c.ptr, (*C.char)(unsafe.Pointer(&buffer[0])), C.size_t(len(buffer)))
-	if length == 0 {
-		return ""
-	}
-	return string(buffer[:length])
+	return bufferString(buffer, uint64(length))
 }
 
 // SetUserdata attaches client-specific data to the runtime.
