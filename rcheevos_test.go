@@ -1,6 +1,7 @@
 package rcheevos
 
 import (
+	"sync"
 	"testing"
 )
 
@@ -551,6 +552,44 @@ func TestMultipleClients(t *testing.T) {
 	}
 
 	client2.Destroy()
+}
+
+// TestReadMemoryFunctionSwap tests that memory reads while the read
+// function is replaced on another goroutine are safe and always call one
+// of the functions set, or none once it is cleared. Run with -race.
+func TestReadMemoryFunctionSwap(t *testing.T) {
+	first := func(uint32, []byte) uint32 { return 1 }
+	second := func(uint32, []byte) uint32 { return 2 }
+	client := NewClient(first, func(*ServerRequest) {})
+	defer client.Destroy()
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		for i := range 1000 {
+			if i%2 == 0 {
+				client.SetReadMemoryFunction(second)
+			} else {
+				client.SetReadMemoryFunction(first)
+			}
+		}
+		client.SetReadMemoryFunction(nil)
+	}()
+	go func() {
+		defer wg.Done()
+		for range 1000 {
+			if n := goReadMemoryCallback(0, nil, 0, client.ptr); n > 2 {
+				t.Errorf("read returned %d, from no function set", n)
+				return
+			}
+		}
+	}()
+	wg.Wait()
+
+	if n := goReadMemoryCallback(0, nil, 0, client.ptr); n != 0 {
+		t.Fatalf("read after clearing the function returned %d, want 0", n)
+	}
 }
 
 func TestBufferString(t *testing.T) {

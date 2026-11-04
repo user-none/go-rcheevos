@@ -10,12 +10,20 @@ import "unsafe"
 //export goReadMemoryCallback
 func goReadMemoryCallback(address C.uint32_t, buffer *C.uint8_t, numBytes C.uint32_t, client *C.rc_client_t) C.uint32_t {
 	c := getClient(client)
-	if c == nil || c.readMemoryFunc == nil {
+	if c == nil {
+		return 0
+	}
+
+	c.mu.RLock()
+	readMemory := c.readMemoryFunc
+	c.mu.RUnlock()
+
+	if readMemory == nil {
 		return 0
 	}
 
 	goBuffer := unsafe.Slice((*byte)(unsafe.Pointer(buffer)), numBytes)
-	return C.uint32_t(c.readMemoryFunc(uint32(address), goBuffer))
+	return C.uint32_t(readMemory(uint32(address), goBuffer))
 }
 
 //export goServerCallCallback
